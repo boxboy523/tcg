@@ -1,0 +1,35 @@
+[gd_scene format=3 uid="uid://bvj8tdnxc3v6"]
+
+[ext_resource type="Script" uid="uid://bkt7bhad5vd5d" path="res://scripts/card_ui.gd" id="1_5x102"]
+
+[node name="CardUI" type="PanelContainer" unique_id=261267553]
+custom_minimum_size = Vector2(100, 140)
+offset_right = 6.0
+offset_bottom = 50.0
+script = ExtResource("1_5x102")
+
+[node name="BackGround" type="ColorRect" parent="." unique_id=940687457]
+layout_mode = 2
+mouse_filter = 2
+color = Color(0.98103684, 0.71345043, 0.12822777, 1)
+
+[node name="Border" type="ReferenceRect" parent="." unique_id=1264428407]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Content" type="VBoxContainer" parent="." unique_id=1448465624]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="TopBar" type="HBoxContainer" parent="Content" unique_id=1974322874]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="NameLabel" type="Label" parent="Content/TopBar" unique_id=284115212]
+layout_mode = 2
+
+[node name="CostLabel" type="Label" parent="Content/TopBar" unique_id=165578975]
+layout_mode = 2
+
+[node name="DescLabel" type="Label" parent="Content" unique_id=977332743]
+layout_mode = 2

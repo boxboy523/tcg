@@ -1,0 +1,6 @@
+[gd_resource type="Card" format=3 uid="uid://g1prrey5vvht"]
+
+[resource]
+cost = 2
+damage = 5
+range = 5

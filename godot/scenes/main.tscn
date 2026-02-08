@@ -1,0 +1,44 @@
+[gd_scene format=3 uid="uid://bxydsb3ub7npf"]
+
+[ext_resource type="Script" uid="uid://dtb7dv05kxbnn" path="res://scripts/main.gd" id="1_0wfyh"]
+[ext_resource type="PackedScene" uid="uid://b30pqo8l0udrw" path="res://scenes/unit.tscn" id="2_0xm2m"]
+[ext_resource type="PackedScene" uid="uid://ntpvhv8y6gsk" path="res://scenes/hand_ui.tscn" id="3_sugp2"]
+
+[node name="Node2D" type="Node2D" unique_id=2140620224]
+script = ExtResource("1_0wfyh")
+unit_scene = ExtResource("2_0xm2m")
+
+[node name="Field" type="Field" parent="." unique_id=400301511]
+
+[node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=1914301416]
+
+[node name="HandUI" parent="CanvasLayer" unique_id=1094595081 instance=ExtResource("3_sugp2")]
+
+[node name="BtnClear" type="Button" parent="CanvasLayer" unique_id=1256091448]
+offset_left = 607.0
+offset_top = 528.0
+offset_right = 687.0
+offset_bottom = 568.0
+text = "Clear"
+
+[node name="BtnDamage" type="Button" parent="CanvasLayer" unique_id=1168419215]
+offset_left = 439.0
+offset_top = 527.0
+offset_right = 519.0
+offset_bottom = 567.0
+text = "Damage"
+
+[node name="BtnMove" type="Button" parent="CanvasLayer" unique_id=2081642401]
+offset_left = 268.0
+offset_top = 526.0
+offset_right = 348.0
+offset_bottom = 566.0
+text = "Move
+"
+
+[node name="BtnSpawn" type="Button" parent="CanvasLayer" unique_id=1396318514]
+offset_left = 109.0
+offset_top = 529.0
+offset_right = 189.0
+offset_bottom = 569.0
+text = "Spawn"
