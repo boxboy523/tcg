@@ -2,16 +2,22 @@
 
 [ext_resource type="Script" uid="uid://bkt7bhad5vd5d" path="res://scripts/card_ui.gd" id="1_5x102"]
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_5x102"]
+corner_radius_top_left = 5
+corner_radius_top_right = 5
+corner_radius_bottom_right = 5
+corner_radius_bottom_left = 5
+
 [node name="CardUI" type="PanelContainer" unique_id=261267553]
 custom_minimum_size = Vector2(100, 140)
 offset_right = 6.0
 offset_bottom = 50.0
 script = ExtResource("1_5x102")
 
-[node name="BackGround" type="ColorRect" parent="." unique_id=940687457]
+[node name="Background" type="Panel" parent="." unique_id=1025334574]
 layout_mode = 2
 mouse_filter = 2
-color = Color(0.98103684, 0.71345043, 0.12822777, 1)
+theme_override_styles/panel = SubResource("StyleBoxFlat_5x102")
 
 [node name="Border" type="ReferenceRect" parent="." unique_id=1264428407]
 layout_mode = 2

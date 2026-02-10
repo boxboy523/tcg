@@ -1,7 +1,9 @@
 use godot::prelude::*;
 
+use crate::data::{GridIdx, UID};
+
 #[derive(GodotConvert, Var, Export, PartialEq, Eq, Clone, Copy, Debug)]
-#[godot(via = i32)] // Godot에서는 0, 1 정수로 취급
+#[godot(via = i32)]
 pub enum Faction {
     Player = 0,
     Enemy = 1,
@@ -11,6 +13,19 @@ impl Default for Faction {
     fn default() -> Self {
         Faction::Player
     }
+}
+
+#[derive(GodotClass)]
+#[class(base=Resource)]
+pub struct UnitRes {
+    #[export]
+    pub name: GString,
+    #[export]
+    pub hp: i32,
+    #[export]
+    pub action_point: i32,
+
+    base: Base<Resource>,
 }
 
 #[derive(GodotClass, Debug)]
@@ -25,21 +40,20 @@ pub struct Unit {
     #[export]
     unit_name: GString,
     #[export]
-    grid_index: i32,
-    #[export]
     pub faction: Faction,
+
+    uid: UID,
+    pub grid_index: GridIdx,
 
     base: Base<Node2D>,
 }
 
 #[godot_api]
 impl Unit {
-    #[func]
-    pub fn setup(&mut self, name: GString, hp: i32, action_point: i32) {
-        self.unit_name = name;
-        self.hp = hp;
-        self.max_hp = hp;
-        self.action_point = action_point;
+    pub fn setup(&mut self, grid_index: GridIdx, uid: UID) {
+        self.grid_index = grid_index;
+        self.uid = uid;
+        let hp = self.hp;
         self.base_mut()
             .emit_signal("hp_changed", &[hp.to_variant(), hp.to_variant()]);
     }
@@ -53,21 +67,24 @@ impl Unit {
         self.base_mut()
             .emit_signal("hp_changed", &[hp.to_variant(), max_hp.to_variant()]);
         if self.hp <= 0 {
-            let idx = self.grid_index;
-            self.base_mut().emit_signal("died", &[idx.to_variant()]);
+            let uid = self.uid.get();
+            self.base_mut().emit_signal("died", &[uid.to_variant()]);
         }
-    }
-
-    #[func]
-    pub fn update_grid_index(&mut self, new_index: i32) {
-        self.grid_index = new_index;
-        self.base_mut()
-            .emit_signal("grid_index_changed", &[new_index.to_variant()]);
     }
 
     #[func]
     pub fn update_faction(&mut self, faction: Faction) {
         self.faction = faction;
+    }
+
+    #[func]
+    pub fn get_uid(&self) -> u32 {
+        self.uid.get()
+    }
+
+    #[func]
+    pub fn get_grid_index(&self) -> i64 {
+        self.grid_index.0
     }
 
     #[signal]

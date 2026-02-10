@@ -2,68 +2,90 @@ use godot::global::Error;
 use godot::prelude::*;
 use std::collections::BTreeMap;
 
-use crate::card::Card;
+use crate::card::{Card, CardInstance};
+use crate::data::{GridIdx, UID};
 use crate::unit::Unit;
 
 #[derive(GodotClass, Debug)]
-#[class(base=Node2D, init)]
+#[class(base=Node2D)]
 pub struct Field {
-    units: BTreeMap<i32, Gd<Unit>>,
+    units: BTreeMap<UID, Gd<Unit>>,
+    grid_map: BTreeMap<GridIdx, UID>,
+
     #[export]
-    deck: Array<Gd<Card>>,
+    deck: Array<Gd<CardInstance>>,
     #[export]
-    hand: Array<Gd<Card>>,
+    hand: Array<Gd<CardInstance>>,
     #[export]
-    discard_pile: Array<Gd<Card>>,
+    discard_pile: Array<Gd<CardInstance>>,
 
     base: Base<Node2D>,
 }
 
 #[godot_api]
+impl INode2D for Field {
+    fn init(base: Base<Node2D>) -> Self {
+        Self {
+            units: BTreeMap::new(),
+            grid_map: BTreeMap::new(),
+            deck: Array::new(),
+            hand: Array::new(),
+            discard_pile: Array::new(),
+            base,
+        }
+    }
+}
+
+#[godot_api]
 impl Field {
     #[func]
-    fn spawn_unit(&mut self, unit_scene: Option<Gd<PackedScene>>, grid_pos: i32) -> Error {
+    fn spawn_unit(&mut self, unit_scene: Option<Gd<PackedScene>>, grid_pos: i64) -> i64 {
         let Some(scene) = unit_scene else {
-            return Error::ERR_DOES_NOT_EXIST;
+            return -1;
         };
 
-        if self.units.contains_key(&grid_pos) {
-            return Error::ERR_ALREADY_IN_USE;
-        }
-
         let mut instance = scene.instantiate_as::<Unit>();
-
+        let uid = UID::new();
+        let grid_pos = GridIdx(grid_pos);
+        {
+            let mut bind = instance.bind_mut();
+            bind.setup(grid_pos, uid);
+        }
         let callable = self.base().callable("_on_unit_died");
         instance.connect("died", &callable);
 
-        let (hp, max_hp) = {
-            let bind = instance.bind();
-            (bind.hp, bind.max_hp)
-        };
-
-        instance.emit_signal("hp_changed", &[hp.to_variant(), max_hp.to_variant()]);
-
-        instance.bind_mut().update_grid_index(grid_pos);
-        self.units.insert(grid_pos, instance.clone());
+        self.units.insert(uid, instance.clone());
+        self.grid_map.insert(grid_pos, uid);
         self.base_mut().add_child(&instance.upcast::<Node>());
 
-        Error::OK
+        uid.get() as i64
     }
 
     #[func]
-    fn move_unit(&mut self, from_idx: i32, to_idx: i32) -> Error {
-        if self.units.contains_key(&to_idx) {
+    pub fn move_unit(&mut self, uid: i64, new_idx: i64) -> Error {
+        let new_idx = GridIdx(new_idx);
+        let uid = UID::from(uid as u32);
+        if self.grid_map.contains_key(&new_idx) {
+            godot_print!("이동 불가: {}번 위치에 이미 유닛이 있음", new_idx.0);
             return Error::ERR_ALREADY_IN_USE;
         }
-        let mut unit = match self.units.remove(&from_idx) {
-            Some(unit) => unit,
-            None => {
-                return Error::ERR_DOES_NOT_EXIST;
-            }
-        };
-        unit.bind_mut().update_grid_index(to_idx);
-        self.units.insert(to_idx, unit);
-        Error::OK
+
+        if let Some(unit) = self.units.get_mut(&uid) {
+            let mut bind = unit.bind_mut();
+            let old_grid_index = bind.grid_index;
+
+            bind.grid_index = new_idx;
+            drop(bind);
+
+            self.grid_map.remove(&old_grid_index);
+            self.grid_map.insert(new_idx, uid);
+
+            unit.emit_signal("grid_index_changed", &[new_idx.0.to_variant()]);
+
+            return Error::OK;
+        }
+
+        Error::ERR_DOES_NOT_EXIST
     }
 
     #[func]
@@ -71,33 +93,57 @@ impl Field {
         for (_, unit) in self.units.iter_mut() {
             unit.queue_free();
         }
-        self.units.clear()
+        self.units.clear();
+        self.grid_map.clear();
+        self.deck.clear();
+        self.hand.clear();
+        self.discard_pile.clear();
     }
 
     #[func]
-    fn _on_unit_died(&mut self, grid_pos: i32) {
-        godot_print!("Unit at {} is dead.", grid_pos);
+    fn _on_unit_died(&mut self, uid: i64) {
+        godot_print!("Unit uid {} is dead.", uid);
+        let uid = UID::from(uid as u32);
 
-        if let Some(mut unit) = self.units.remove(&grid_pos) {
+        if let Some(mut unit) = self.units.remove(&uid) {
+            let grid_index = unit.bind().grid_index;
+            self.grid_map.remove(&grid_index);
             unit.queue_free();
         }
     }
 
-    fn get_unit(&mut self, idx: i32) -> Option<Gd<Unit>> {
-        match self.units.get_mut(&idx) {
+    fn get_unit(&mut self, uid: i64) -> Option<Gd<Unit>> {
+        let uid = UID::from(uid as u32);
+        match self.units.get_mut(&uid) {
             Some(u) => Some(u.clone()),
             None => None,
         }
     }
 
     #[func]
-    pub fn initialize_deck(&mut self, starter_deck: Array<Gd<Card>>) {
+    pub fn initialize_deck(&mut self, starter_deck: Array<Gd<Card>>, owners: Array<i32>) {
+        for mut card in self.deck.iter_shared() {
+            card.queue_free();
+        }
+        for mut card in self.hand.iter_shared() {
+            card.queue_free();
+        }
+        for mut card in self.discard_pile.iter_shared() {
+            card.queue_free();
+        }
+
         self.deck.clear();
         self.hand.clear();
         self.discard_pile.clear();
 
-        for card in starter_deck.iter_shared() {
-            self.deck.push(&card);
+        for (card_res, owner) in starter_deck.iter_shared().zip(owners.iter_shared()) {
+            let mut instance = CardInstance::new_alloc();
+            {
+                let mut bind = instance.bind_mut();
+                bind.init_state(card_res, owner);
+            }
+            self.deck.push(&instance);
+            self.base_mut().add_child(&instance.upcast::<Node>());
         }
         self.shuffle_deck();
     }
@@ -154,7 +200,7 @@ impl Field {
     }
 
     #[func]
-    pub fn play_card(&mut self, card_idx: i32, source_idx: i32, target_idx: i32) -> Error {
+    pub fn play_card(&mut self, card_idx: i32, target_uid: i64) -> Error {
         // 1. 유효성 검사 (인덱스 범위)
         if card_idx as usize >= self.hand.len() {
             return Error::ERR_INVALID_PARAMETER;
@@ -164,6 +210,10 @@ impl Field {
 
         // 사용할 카드 임시 확보 (아직 제거 안 함)
         let card_to_play = self.hand.at(card_idx as usize).clone();
+        let card_owner = self
+            .units
+            .get(&UID::from(card_to_play.bind().owner_id as u32))
+            .cloned();
         let card_bind = card_to_play.bind();
 
         if card_bind.cost as usize > indices_to_remove.len() {
@@ -175,17 +225,19 @@ impl Field {
             return Error::ERR_UNAVAILABLE;
         }
 
-        let source_unit = match self.get_unit(source_idx) {
-            Some(u) => u,
-            None => return Error::ERR_INVALID_PARAMETER,
-        };
-
-        let mut target_unit = match self.get_unit(target_idx) {
+        let mut target_unit = match self.get_unit(target_uid) {
             Some(u) => u,
             None => return Error::ERR_DOES_NOT_EXIST,
         };
 
-        let dist = (target_idx - source_idx).abs();
+        let dist = if let Some(owner_unit) = card_owner {
+            let owner_idx = owner_unit.bind().grid_index;
+            let target_idx = target_unit.bind().grid_index;
+            GridIdx::dist(owner_idx, target_idx)
+        } else {
+            godot_print!("Card owner unit not found!");
+            return Error::ERR_DOES_NOT_EXIST;
+        };
         if dist > card_bind.range {
             godot_print!("Too far! Dist: {}, Range: {}", dist, card_bind.range);
             return Error::ERR_UNAVAILABLE;

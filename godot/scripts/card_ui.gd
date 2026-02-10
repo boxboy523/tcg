@@ -6,7 +6,7 @@ signal unhovered(index)
 signal clicked(index)
 
 var card_index: int = -1
-var card_data: Resource # Rust의 Card 리소스
+var card_data: CardInstance # Rust의 Card 리소스
 
 # 노드 참조 (이름이 다르면 에디터에 맞게 수정하세요)
 @onready var name_label = $Content/TopBar/NameLabel
@@ -18,27 +18,48 @@ var card_data: Resource # Rust의 Card 리소스
 func _ready():
 	# UI 초기화
 	reset_visual()
-	
+
 	# 마우스 이벤트 연결 (PanelContainer는 GUI Input을 받음)
 	gui_input.connect(_on_gui_input)
 	mouse_entered.connect(_on_mouse_entered)
 	mouse_exited.connect(_on_mouse_exited)
 
 # 데이터 주입 함수 (HandUI에서 호출)
-func setup(index: int, card: Resource):
+func setup(index: int, card: CardInstance):
 	card_index = index
 	card_data = card
-	
+
 	name_label.text = card.name
 	cost_label.text = str(card.cost)
-	
+
 	# 데미지나 범위 같은 설명 표시
 	var desc = "Rng: %d" % card.range
 	if card.damage > 0:
 		desc += "\nDmg: %d" % card.damage
 	desc_label.text = desc
-
+	set_owner_visuals(card.owner_id)
 # --- 시각적 상태 변경 함수들 ---
+
+func set_owner_visuals(owner_id: int):
+	# 예시: 0번 유닛(플레이어) = 파란색, 1번 유닛(동료) = 초록색, 그 외(적) = 빨간색
+	var style = background.get_theme_stylebox("panel").duplicate() as StyleBoxFlat
+
+	# 스타일박스가 없으면 새로 생성 (안전장치)
+	if not style:
+		style = StyleBoxFlat.new()
+		style.set_corner_radius_all(8) # 둥근 모서리
+		background.add_theme_stylebox_override("panel", style)
+
+	# 색상 팔레트 정의
+	match owner_id:
+		0: # 플레이어 (파란색 계열)
+			style.bg_color = Color(0.2, 0.3, 0.6, 1.0) 
+		1: # 동료/용병 (청록색/보라색 계열)
+			style.bg_color = Color(0.2, 0.5, 0.4, 1.0)
+		_: # 적 (붉은색 계열)
+			style.bg_color = Color(0.6, 0.2, 0.2, 1.0)
+
+	background.add_theme_stylebox_override("panel", style)
 
 func reset_visual():
 	modulate = Color(1, 1, 1) # 원래 색
@@ -67,4 +88,4 @@ func _on_mouse_entered():
 	hovered.emit(card_index)
 func _on_mouse_exited():
 	unhovered.emit(card_index)
-	
+

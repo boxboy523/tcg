@@ -1,4 +1,5 @@
 [gd_resource type="Card" format=3 uid="uid://bmdwruccl8h3n"]
 
 [resource]
+name = "Strike"
 damage = 5

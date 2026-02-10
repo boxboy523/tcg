@@ -6,5 +6,6 @@ struct MyExtension;
 unsafe impl ExtensionLibrary for MyExtension {}
 
 pub mod card;
+pub mod data;
 pub mod field;
 pub mod unit;
