@@ -16,7 +16,7 @@ impl Default for Faction {
 }
 
 #[derive(GodotClass)]
-#[class(base=Resource)]
+#[class(base=Resource, init)]
 pub struct UnitRes {
     #[export]
     pub name: GString,
@@ -32,11 +32,11 @@ pub struct UnitRes {
 #[class(base=Node2D, init)]
 pub struct Unit {
     #[export]
-    pub hp: i32,
+    pub hp: i64,
     #[export]
-    pub max_hp: i32,
+    pub max_hp: i64,
     #[export]
-    action_point: i32,
+    action_point: i64,
     #[export]
     unit_name: GString,
     #[export]
@@ -59,7 +59,7 @@ impl Unit {
     }
 
     #[func]
-    pub fn take_damage(&mut self, amount: i32) {
+    pub fn take_damage(&mut self, amount: i64) {
         self.hp -= amount;
         let hp = self.hp;
         let max_hp = self.max_hp;
@@ -78,19 +78,19 @@ impl Unit {
     }
 
     #[func]
-    pub fn get_uid(&self) -> u32 {
-        self.uid.get()
+    pub fn get_uid(&self) -> UID {
+        self.uid
     }
 
     #[func]
-    pub fn get_grid_index(&self) -> i64 {
-        self.grid_index.0
+    pub fn get_grid_index(&self) -> GridIdx {
+        self.grid_index
     }
 
     #[signal]
-    fn grid_index_changed(new_index: i32);
+    fn grid_index_changed(new_index: i64);
     #[signal]
-    fn hp_changed(hp: i32, max_hp: i32);
+    fn hp_changed(hp: i64, max_hp: i64);
     #[signal]
-    fn died(index: i32);
+    fn died(index: i64);
 }

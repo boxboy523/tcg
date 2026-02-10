@@ -39,14 +39,15 @@ impl INode2D for Field {
 #[godot_api]
 impl Field {
     #[func]
-    fn spawn_unit(&mut self, unit_scene: Option<Gd<PackedScene>>, grid_pos: i64) -> i64 {
+    fn spawn_unit(&mut self, unit_scene: Option<Gd<PackedScene>>, grid_idx: GridIdx) -> UID {
         let Some(scene) = unit_scene else {
-            return -1;
+            godot_error!("Unit scene is None!");
+            return UID::null();
         };
 
         let mut instance = scene.instantiate_as::<Unit>();
         let uid = UID::new();
-        let grid_pos = GridIdx(grid_pos);
+        let grid_pos = grid_idx;
         {
             let mut bind = instance.bind_mut();
             bind.setup(grid_pos, uid);
@@ -58,13 +59,11 @@ impl Field {
         self.grid_map.insert(grid_pos, uid);
         self.base_mut().add_child(&instance.upcast::<Node>());
 
-        uid.get() as i64
+        uid
     }
 
     #[func]
-    pub fn move_unit(&mut self, uid: i64, new_idx: i64) -> Error {
-        let new_idx = GridIdx(new_idx);
-        let uid = UID::from(uid as u32);
+    pub fn move_unit(&mut self, uid: UID, new_idx: GridIdx) -> Error {
         if self.grid_map.contains_key(&new_idx) {
             godot_print!("이동 불가: {}번 위치에 이미 유닛이 있음", new_idx.0);
             return Error::ERR_ALREADY_IN_USE;
@@ -101,9 +100,8 @@ impl Field {
     }
 
     #[func]
-    fn _on_unit_died(&mut self, uid: i64) {
-        godot_print!("Unit uid {} is dead.", uid);
-        let uid = UID::from(uid as u32);
+    fn _on_unit_died(&mut self, uid: UID) {
+        godot_print!("Unit uid {} is dead.", uid.get());
 
         if let Some(mut unit) = self.units.remove(&uid) {
             let grid_index = unit.bind().grid_index;
@@ -112,8 +110,7 @@ impl Field {
         }
     }
 
-    fn get_unit(&mut self, uid: i64) -> Option<Gd<Unit>> {
-        let uid = UID::from(uid as u32);
+    fn get_unit(&mut self, uid: UID) -> Option<Gd<Unit>> {
         match self.units.get_mut(&uid) {
             Some(u) => Some(u.clone()),
             None => None,
@@ -121,7 +118,7 @@ impl Field {
     }
 
     #[func]
-    pub fn initialize_deck(&mut self, starter_deck: Array<Gd<Card>>, owners: Array<i32>) {
+    pub fn initialize_deck(&mut self, starter_deck: Array<Gd<Card>>, owners: Array<i64>) {
         for mut card in self.deck.iter_shared() {
             card.queue_free();
         }
@@ -140,7 +137,7 @@ impl Field {
             let mut instance = CardInstance::new_alloc();
             {
                 let mut bind = instance.bind_mut();
-                bind.init_state(card_res, owner);
+                bind.init_state(card_res, UID::from(owner as u32));
             }
             self.deck.push(&instance);
             self.base_mut().add_child(&instance.upcast::<Node>());
@@ -173,7 +170,7 @@ impl Field {
     }
 
     #[func]
-    pub fn get_burn_indices(&self, play_idx: i32) -> Array<i32> {
+    pub fn get_burn_indices(&self, play_idx: i64) -> Array<i64> {
         let mut burn_indices = Array::new();
         let play_idx = play_idx as usize;
 
@@ -192,7 +189,7 @@ impl Field {
             if i == play_idx {
                 continue;
             }
-            burn_indices.push(i as i32);
+            burn_indices.push(i as i64);
             collected += 1;
         }
 
@@ -200,7 +197,7 @@ impl Field {
     }
 
     #[func]
-    pub fn play_card(&mut self, card_idx: i32, target_uid: i64) -> Error {
+    pub fn play_card(&mut self, card_idx: i64, target_uid: UID) -> Error {
         // 1. 유효성 검사 (인덱스 범위)
         if card_idx as usize >= self.hand.len() {
             return Error::ERR_INVALID_PARAMETER;
@@ -210,10 +207,7 @@ impl Field {
 
         // 사용할 카드 임시 확보 (아직 제거 안 함)
         let card_to_play = self.hand.at(card_idx as usize).clone();
-        let card_owner = self
-            .units
-            .get(&UID::from(card_to_play.bind().owner_id as u32))
-            .cloned();
+        let card_owner = self.units.get(&card_to_play.bind().owner_uid).cloned();
         let card_bind = card_to_play.bind();
 
         if card_bind.cost as usize > indices_to_remove.len() {

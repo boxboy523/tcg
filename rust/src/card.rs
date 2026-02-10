@@ -8,11 +8,11 @@ pub struct Card {
     #[export]
     pub name: GString,
     #[export]
-    pub cost: i32,
+    pub cost: i64,
     #[export]
-    pub damage: i32, // 0이면 데미지 없는 카드
+    pub damage: i64, // 0이면 데미지 없는 카드
     #[export]
-    pub range: i32, // 사거리 (0이면 글로벌/즉발)
+    pub range: i64, // 사거리 (0이면 글로벌/즉발)
 
     base: Base<Resource>,
 }
@@ -39,13 +39,13 @@ pub struct CardInstance {
     pub base_card: Option<Gd<Card>>,
 
     #[export]
-    pub cost: i32,
+    pub cost: i64,
 
     #[export]
-    pub damage: i32,
+    pub damage: i64,
 
     #[export]
-    pub range: i32,
+    pub range: i64,
 
     #[export]
     pub name: GString,
@@ -56,25 +56,25 @@ pub struct CardInstance {
 #[godot_api]
 impl CardInstance {
     #[func]
-    pub fn init_state(&mut self, card: Gd<Card>, owner: i32) {
+    pub fn init_state(&mut self, card: Gd<Card>, owner: UID) {
         let bind = card.bind();
-        self.cost = bind.cost as i32;
-        self.damage = bind.damage as i32;
-        self.range = bind.range as i32;
+        self.cost = bind.cost;
+        self.damage = bind.damage;
+        self.range = bind.range;
         self.name = bind.name.clone();
 
         drop(bind);
 
         self.base_card = Some(card);
-        self.owner_id = owner;
+        self.owner_uid = owner;
 
-        self.base_mut().set_name(&format!("Card_{}", owner));
+        self.base_mut().set_name(&format!("Card_{}", owner.get()));
     }
 
     #[func]
-    pub fn get_final_damage(&self) -> i32 {
+    pub fn get_final_damage(&self) -> i64 {
         if let Some(card) = &self.base_card {
-            return card.bind().damage as i32;
+            return card.bind().damage as i64;
         }
         0
     }
